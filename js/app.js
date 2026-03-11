@@ -138,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('res-date').valueAsDate = new Date();
         
         resForm.reset();
+        delete resForm.dataset.editId;
         updateResTotal();
         resModal.style.display = 'flex';
     }
@@ -152,10 +153,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('close-modal-btn')?.addEventListener('click', () => resModal.style.display = 'none');
 
     resForm?.addEventListener('submit', (e) => {
-        e.preventDefault();
+        const editId = resForm.dataset.editId;
         const resData = {
-            id: Date.now(),
-            timestamp: Date.now(),
+            id: editId ? parseInt(editId) : Date.now(),
+            timestamp: editId ? reservations.find(r => r.id == editId).timestamp : Date.now(),
             carName: document.getElementById('res-car-name').value,
             customerName: document.getElementById('res-name').value,
             customerPhone: document.getElementById('res-phone').value,
@@ -164,13 +165,22 @@ document.addEventListener('DOMContentLoaded', () => {
             total: document.getElementById('res-total-estimated').textContent
         };
 
-        // Save local copy
-        reservations.push(resData);
+        if (editId) {
+            const idx = reservations.findIndex(r => r.id == editId);
+            reservations[idx] = resData;
+        } else {
+            reservations.push(resData);
+        }
+        
         saveToStorage();
 
-        // WhatsApp redirect
-        const msg = `*NUEVA SOLICITUD DE RESERVA* 🚗\n\n*Vehículo:* ${resData.carName}\n*Cliente:* ${resData.customerName}\n*Teléfono:* ${resData.customerPhone}\n*Inicio:* ${resData.startDate}\n*Días:* ${resData.days}\n*Total:* ${resData.total}\n\nHola JY Rent A Car, me gustaría confirmar disponibilidad.`;
-        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
+        // WhatsApp redirect (only for new reservations)
+        if (!editId) {
+            const msg = `*NUEVA SOLICITUD DE RESERVA* 🚗\n\n*Vehículo:* ${resData.carName}\n*Cliente:* ${resData.customerName}\n*Teléfono:* ${resData.customerPhone}\n*Inicio:* ${resData.startDate}\n*Días:* ${resData.days}\n*Total:* ${resData.total}\n\nHola JY Rent A Car, me gustaría confirmar disponibilidad.`;
+            window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
+        } else {
+            alert('Reserva actualizada correctamente.');
+        }
         
         resModal.style.display = 'none';
         if(isLoggedIn) renderReservations();
@@ -230,6 +240,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const inventoryList = document.getElementById('inventory-list');
     const adminForm = document.getElementById('admin-form');
     const adminFormContainer = document.getElementById('admin-form-container');
+    const carImagesInput = document.getElementById('car-images-input');
+    const imagePreviewContainer = document.getElementById('image-preview-container');
+    let tempCarImages = [];
+
+    carImagesInput?.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64 = event.target.result;
+                tempCarImages.push(base64);
+                renderImagePreviews();
+            };
+            reader.readAsDataURL(file);
+        });
+        carImagesInput.value = ''; // Reset to allow same file re-upload
+    });
+
+    function renderImagePreviews() {
+        if(!imagePreviewContainer) return;
+        imagePreviewContainer.innerHTML = '';
+        tempCarImages.forEach((src, index) => {
+            const div = document.createElement('div');
+            div.className = 'preview-item';
+            div.innerHTML = `
+                <img src="${src}" alt="Preview">
+                <button type="button" class="remove-img" data-index="${index}">&times;</button>
+            `;
+            imagePreviewContainer.appendChild(div);
+        });
+
+        document.querySelectorAll('.remove-img').forEach(btn => {
+            btn.onclick = () => {
+                tempCarImages.splice(btn.dataset.index, 1);
+                renderImagePreviews();
+            };
+        });
+    }
 
     const iconEdit = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
     const iconTrash = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
@@ -262,6 +310,8 @@ document.addEventListener('DOMContentLoaded', () => {
         adminForm.reset();
         document.getElementById('car-id').value = '';
         document.getElementById('form-title').textContent = 'Añadir Nuevo Vehículo';
+        tempCarImages = [];
+        renderImagePreviews();
         adminFormContainer.style.display = 'block';
     });
 
@@ -275,7 +325,8 @@ document.addEventListener('DOMContentLoaded', () => {
             year: document.getElementById('car-year').value,
             type: document.getElementById('car-type').value,
             price: document.getElementById('car-price').value,
-            image: document.getElementById('car-image').value,
+            image: tempCarImages[0] || 'https://via.placeholder.com/800x500', // Principal image
+            allImages: [...tempCarImages],
             features: document.getElementById('car-features').value
         };
 
@@ -303,17 +354,52 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('car-year').value = car.year;
         document.getElementById('car-type').value = car.type;
         document.getElementById('car-price').value = car.price;
-        document.getElementById('car-image').value = car.image;
+        tempCarImages = car.allImages || (car.image ? [car.image] : []);
+        renderImagePreviews();
         document.getElementById('car-features').value = Array.isArray(car.features) ? car.features.join(', ') : car.features;
         adminFormContainer.style.display = 'block';
     }
 
     // CRUD: Reservations
-    function renderReservations() {
+    window.editRes = (id) => {
+        const res = reservations.find(r => r.id == id);
+        if(!res) return;
+        
+        // Find the car to get price
+        const car = cars.find(c => c.brand + ' ' + c.model === res.carName);
+        
+        // Open the modal and fill it
+        openReservationModal(car ? car.id : null);
+        
+        // Override fields with existing reservation data
+        document.getElementById('res-name').value = res.customerName;
+        document.getElementById('res-phone').value = res.customerPhone;
+        document.getElementById('res-date').value = res.startDate;
+        document.getElementById('res-days').value = res.days;
+        updateResTotal();
+        
+        // Mark form for update
+        resForm.dataset.editId = id;
+    };
+    const resSearchInput = document.getElementById('res-search-input');
+
+    function renderReservations(searchTerm = '') {
         const list = document.getElementById('reservations-list');
         if(!list) return;
         list.innerHTML = '';
-        reservations.sort((a,b) => b.timestamp - a.timestamp).forEach(res => {
+        
+        let filteredRes = [...reservations];
+        
+        if (searchTerm) {
+            const lowTerm = searchTerm.toLowerCase();
+            filteredRes = filteredRes.filter(res => 
+                res.customerName.toLowerCase().includes(lowTerm) || 
+                res.carName.toLowerCase().includes(lowTerm) ||
+                res.customerPhone.includes(lowTerm)
+            );
+        }
+
+        filteredRes.sort((a,b) => b.timestamp - a.timestamp).forEach(res => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${new Date(res.timestamp).toLocaleDateString()}</td>
@@ -321,12 +407,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${res.carName}</td>
                 <td>${res.days}d / ${res.total}</td>
                 <td>
-                    <button class="btn-action btn-delete-action" onclick="deleteRes(${res.id})" title="Borrar">${iconTrash}</button>
+                    <div class="action-buttons">
+                        <button class="btn-action btn-edit-action" onclick="editRes(${res.id})" title="Editar">${iconEdit}</button>
+                        <button class="btn-action btn-delete-action" onclick="deleteRes(${res.id})" title="Borrar">${iconTrash}</button>
+                    </div>
                 </td>
             `;
             list.appendChild(tr);
         });
     }
+
+    resSearchInput?.addEventListener('input', (e) => {
+        renderReservations(e.target.value);
+    });
 
     window.deleteRes = (id) => {
         if(confirm('¿Borrar reserva?')) { reservations = reservations.filter(r => r.id !== id); saveToStorage(); renderReservations(); }
@@ -362,6 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('user-id').value = u.id;
         document.getElementById('new-username').value = u.username;
         document.getElementById('new-password').value = u.password;
+        document.getElementById('new-role').value = u.role || 'Admin';
         document.getElementById('user-form-title').textContent = 'Editar Administrador';
         userContainer.style.display = 'block';
     };
@@ -379,15 +473,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = document.getElementById('user-id').value;
         const username = document.getElementById('new-username').value;
         const password = document.getElementById('new-password').value;
-
+        const role = document.getElementById('new-role').value;
+// turbo
         if (id) {
             const idx = users.findIndex(u => u.id == id);
             if (idx !== -1) {
                 users[idx].username = username;
                 users[idx].password = password;
+                users[idx].role = role;
             }
         } else {
-            users.push({ id: Date.now(), username, password, role: 'Admin' });
+            users.push({ id: Date.now(), username, password, role: role });
         }
         
         saveToStorage();

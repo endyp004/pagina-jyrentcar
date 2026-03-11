@@ -258,8 +258,15 @@
                                             <input type="number" id="car-price" min="1" step="0.01" required>
                                         </div>
                                         <div class="form-group">
-                                            <label for="car-image">URL de Imagen</label>
-                                            <input type="url" id="car-image" required placeholder="https://...">
+                                            <label>Fotos del Vehículo</label>
+                                            <div class="custom-file-upload">
+                                                <label for="car-images-input" class="btn-premium-upload">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                                                    Seleccionar Fotos
+                                                </label>
+                                                <input type="file" id="car-images-input" accept="image/*" multiple style="display: none;">
+                                            </div>
+                                            <div id="image-preview-container" class="image-preview-grid"></div>
                                         </div>
                                     </div>
                                     <div class="form-group">
@@ -294,6 +301,9 @@
                         <div class="admin-panel">
                             <div class="admin-header">
                                 <h2>Historial de Reservas</h2>
+                                <div class="admin-filters">
+                                    <input type="text" id="res-search-input" placeholder="Buscar por cliente o auto..." class="admin-search-input">
+                                </div>
                             </div>
                             <table class="inventory-table">
                                 <thead>
@@ -334,6 +344,14 @@
                                             <label for="new-password">Contraseña</label>
                                             <input type="password" id="new-password" required>
                                         </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="new-role">Rango / Tipo de Usuario</label>
+                                        <select id="new-role" required>
+                                            <option value="Admin">Admin</option>
+                                            <option value="Super Admin">Super Admin</option>
+                                            <option value="Editor">Editor</option>
+                                        </select>
                                     </div>
                                     <div class="admin-actions">
                                         <button type="submit" class="btn btn-primary">Guardar Usuario</button>
