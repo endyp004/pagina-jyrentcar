@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Aliases for security utilities
+    const S = JYSecurity.sanitizeHTML;
+    const SURL = JYSecurity.sanitizeURL;
+
     // ==== UI Interaction: Navigation SPA & Mobile Menu ====
     const navLinks = document.querySelectorAll('[data-view]');
     const viewSections = document.querySelectorAll('.view-section');
@@ -15,6 +19,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function switchView(targetViewId) {
+        const allowedViews = ['home', 'catalog', 'contact', 'admin'];
+        if (!allowedViews.includes(targetViewId)) return;
+
         navLinks.forEach(link => {
             const isMatch = link.getAttribute('data-view') === targetViewId;
             if(!link.classList.contains('btn')) link.classList.toggle('active', isMatch);
@@ -26,11 +33,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         navLinksContainer.classList.remove('show');
         window.scrollTo(0, 0);
+
+        // Fetch data when switching to relevant views
+        if (targetViewId === 'catalog') fetchCars();
+        if (targetViewId === 'admin') checkAdminAuth();
     }
 
     const initialHash = window.location.hash.replace('#', '');
     if (initialHash && document.getElementById(`view-${initialHash}`)) {
         switchView(initialHash);
+    } else {
+        switchView('home');
     }
 
     navLinks.forEach(link => {
@@ -52,30 +65,28 @@ document.addEventListener('DOMContentLoaded', () => {
         switchView(hash);
     });
 
-    // ==== Data Management ====
-    const STORAGE_KEY_CARS = 'jy_cars';
-    const STORAGE_KEY_RESERVATIONS = 'jy_reservations';
-    const STORAGE_KEY_USERS = 'jy_users';
+    // ==== Data Management (API) ====
+    let cars = [];
+    let reservations = [];
 
-    const defaultCars = [
-        { id: 'car-1', brand: 'Mercedes-Benz', model: 'C-Class', year: 2024, type: 'sedan', price: 120, image: 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?q=80&w=800&auto=format&fit=crop', features: ['Automático', '5 Pasajeros', 'Piel', 'GPS'] },
-        { id: 'car-2', brand: 'BMW', model: 'X5', year: 2023, type: 'suv', price: 180, image: 'https://images.unsplash.com/photo-1556189250-72ba497e0bde?q=80&w=800&auto=format&fit=crop', features: ['Automático', '7 Pasajeros', 'Techo Panorámico'] },
-        { id: 'car-3', brand: 'Porsche', model: '911 Carrera', year: 2024, type: 'sport', price: 350, image: 'https://images.unsplash.com/photo-1503376712341-ea4cf45f6eb6?q=80&w=800&auto=format&fit=crop', features: ['Automático', '2 Pasajeros', '450 HP'] }
-    ];
+    async function fetchCars() {
+        try {
+            cars = await JYSecurity.apiRequest('/cars');
+            renderCatalog();
+            if (isLoggedIn) renderInventory();
+        } catch (err) {
+            console.error('Error fetching cars:', err);
+        }
+    }
 
-    let cars = JSON.parse(localStorage.getItem(STORAGE_KEY_CARS)) || defaultCars;
-    let reservations = JSON.parse(localStorage.getItem(STORAGE_KEY_RESERVATIONS)) || [];
-    let users = JSON.parse(localStorage.getItem(STORAGE_KEY_USERS)) || [
-        { id: 1, username: 'admin', password: '1234', role: 'Super Admin' }
-    ];
-
-    const saveToStorage = () => {
-        localStorage.setItem(STORAGE_KEY_CARS, JSON.stringify(cars));
-        localStorage.setItem(STORAGE_KEY_RESERVATIONS, JSON.stringify(reservations));
-        localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
-    };
-
-    if (!localStorage.getItem(STORAGE_KEY_CARS)) saveToStorage();
+    async function fetchReservations() {
+        try {
+            reservations = await JYSecurity.apiRequest('/reservations');
+            renderReservations();
+        } catch (err) {
+            console.error('Error fetching reservations:', err);
+        }
+    }
 
     // ==== Catalog Logic ====
     const catalogGrid = document.getElementById('catalog-grid');
@@ -93,22 +104,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         filteredCars.forEach(car => {
             const typeLabels = { sedan: 'Sedán', suv: 'SUV', sport: 'Deportivo' };
-            const featuresHTML = (Array.isArray(car.features) ? car.features : car.features.split(',')).map(f => `<span class="feature-tag">${f.trim()}</span>`).join('');
+            const rawFeatures = Array.isArray(car.features) ? car.features : (car.features || '').split(',');
+            const featuresHTML = rawFeatures.map(f => `<span class="feature-tag">${S(f.trim())}</span>`).join('');
             
+            const safeImage = SURL(car.image) || 'https://via.placeholder.com/800x500';
+            const safeBrand = S(car.brand);
+            const safeModel = S(car.model);
+            const safeYear = S(String(car.year));
+            const safePrice = S(String(car.price));
+            const safeType = S(typeLabels[car.type] || car.type);
+            const safeId = S(car.id);
+
             const card = document.createElement('div');
             card.className = 'car-card';
             card.innerHTML = `
                 <div class="car-image-container">
-                    <div class="car-badge">${typeLabels[car.type] || car.type}</div>
-                    <img src="${car.image}" alt="${car.brand}" class="car-image" onerror="this.src='https://via.placeholder.com/800x500'">
+                    <div class="car-badge">${safeType}</div>
+                    <img src="${safeImage}" alt="${safeBrand}" class="car-image" onerror="this.src='https://via.placeholder.com/800x500'">
                 </div>
                 <div class="car-content">
-                    <h3 class="car-brand-model">${car.brand} <span>${car.model}</span></h3>
-                    <p class="car-year">Año: ${car.year}</p>
+                    <h3 class="car-brand-model">${safeBrand} <span>${safeModel}</span></h3>
+                    <p class="car-year">Año: ${safeYear}</p>
                     <div class="car-features-list">${featuresHTML}</div>
                     <div class="car-footer">
-                        <div class="car-price">$${car.price} <span>/día</span></div>
-                        <button class="btn btn-primary btn-reserve-trigger" data-id="${car.id}">Reservar</button>
+                        <div class="car-price">$${safePrice} <span>/día</span></div>
+                        <button class="btn btn-primary btn-reserve-trigger" data-id="${safeId}">Reservar</button>
                     </div>
                 </div>
             `;
@@ -129,9 +149,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const car = cars.find(c => c.id === carId);
         if(!car) return;
 
+        const safeImage = SURL(car.image) || 'https://via.placeholder.com/800x500';
         document.getElementById('modal-car-preview').innerHTML = `
-            <img src="${car.image}" alt="${car.brand}" style="width:80px; height:50px; object-fit:cover; border-radius:4px;">
-            <div class="preview-details"><strong>${car.brand} ${car.model}</strong><span>$${car.price}/día</span></div>
+            <img src="${safeImage}" alt="${S(car.brand)}" style="width:80px; height:50px; object-fit:cover; border-radius:4px;">
+            <div class="preview-details"><strong>${S(car.brand)} ${S(car.model)}</strong><span>$${S(String(car.price))}/día</span></div>
         `;
         document.getElementById('res-car-name').value = `${car.brand} ${car.model}`;
         document.getElementById('res-car-price').value = car.price;
@@ -152,78 +173,113 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('res-days')?.addEventListener('input', updateResTotal);
     document.getElementById('close-modal-btn')?.addEventListener('click', () => resModal.style.display = 'none');
 
-    resForm?.addEventListener('submit', (e) => {
-        const editId = resForm.dataset.editId;
+    resForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const nameVal = document.getElementById('res-name').value;
+        const phoneVal = document.getElementById('res-phone').value;
+        const dateVal = document.getElementById('res-date').value;
+        const daysVal = document.getElementById('res-days').value;
+
+        const validations = [
+            JYSecurity.validateInput(nameVal, 'text'),
+            JYSecurity.validateInput(phoneVal, 'phone'),
+            JYSecurity.validateInput(dateVal, 'date'),
+            JYSecurity.validateInput(daysVal, 'number')
+        ];
+
+        const firstError = validations.find(v => !v.valid);
+        if (firstError) {
+            alert(firstError.error);
+            return;
+        }
+
         const resData = {
-            id: editId ? parseInt(editId) : Date.now(),
-            timestamp: editId ? reservations.find(r => r.id == editId).timestamp : Date.now(),
+            timestamp: Date.now(),
             carName: document.getElementById('res-car-name').value,
-            customerName: document.getElementById('res-name').value,
-            customerPhone: document.getElementById('res-phone').value,
-            startDate: document.getElementById('res-date').value,
-            days: document.getElementById('res-days').value,
+            customerName: nameVal.trim(),
+            customerPhone: phoneVal.trim(),
+            startDate: dateVal,
+            days: daysVal,
             total: document.getElementById('res-total-estimated').textContent
         };
 
-        if (editId) {
-            const idx = reservations.findIndex(r => r.id == editId);
-            reservations[idx] = resData;
-        } else {
-            reservations.push(resData);
-        }
-        
-        saveToStorage();
-
-        // WhatsApp redirect (only for new reservations)
-        if (!editId) {
+        try {
+            await JYSecurity.apiRequest('/reservations', {
+                method: 'POST',
+                body: JSON.stringify(resData)
+            });
+            
             const msg = `*NUEVA SOLICITUD DE RESERVA* 🚗\n\n*Vehículo:* ${resData.carName}\n*Cliente:* ${resData.customerName}\n*Teléfono:* ${resData.customerPhone}\n*Inicio:* ${resData.startDate}\n*Días:* ${resData.days}\n*Total:* ${resData.total}\n\nHola JY Rent A Car, me gustaría confirmar disponibilidad.`;
-            window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
-        } else {
-            alert('Reserva actualizada correctamente.');
+            window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
+            
+            resModal.style.display = 'none';
+            if(isLoggedIn) fetchReservations();
+        } catch (err) {
+            alert('Error al guardar la reserva.');
         }
-        
-        resModal.style.display = 'none';
-        if(isLoggedIn) renderReservations();
     });
 
     // ==== Admin Panel Logic ====
     const adminLoginView = document.getElementById('admin-login-view');
     const adminDashboardView = document.getElementById('admin-dashboard-view');
     const loginForm = document.getElementById('login-form');
-    let isLoggedIn = sessionStorage.getItem('jy_admin_logged_in') === 'true';
+    let isLoggedIn = false;
+
+    const loginLimiter = new JYSecurity.RateLimiter(5, 30000);
 
     function checkAdminAuth() {
-        const authed = sessionStorage.getItem('jy_admin_logged_in') === 'true';
-        adminLoginView.style.display = authed ? 'none' : 'flex';
-        adminDashboardView.style.display = authed ? 'block' : 'none';
-        if (authed) {
-            renderInventory();
-            renderReservations();
-            renderUsers();
+        const session = JYSecurity.validateSession();
+        isLoggedIn = session.valid;
+        adminLoginView.style.display = isLoggedIn ? 'none' : 'flex';
+        adminDashboardView.style.display = isLoggedIn ? 'block' : 'none';
+        if (isLoggedIn) {
+            fetchCars();
+            fetchReservations();
         }
     }
 
-    loginForm?.addEventListener('submit', (e) => {
+    loginForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const u = document.getElementById('login-username').value;
-        const p = document.getElementById('login-password').value;
-        const found = users.find(user => user.username === u && user.password === p);
+        const loginError = document.getElementById('login-error');
 
-        if (found) {
-            sessionStorage.setItem('jy_admin_logged_in', 'true');
+        const status = loginLimiter.getStatus();
+        if (status.locked) {
+            loginError.textContent = `⏳ Demasiados intentos. Espera ${status.remainingSeconds} segundos.`;
+            loginError.style.display = 'block';
+            return;
+        }
+
+        const u = document.getElementById('login-username').value.trim();
+        const p = document.getElementById('login-password').value;
+
+        if (!u || !p) {
+            loginError.textContent = 'Por favor, completa ambos campos.';
+            loginError.style.display = 'block';
+            return;
+        }
+
+        const res = await JYSecurity.login(u, p);
+
+        if (res.success) {
+            loginLimiter.reset();
             isLoggedIn = true;
-            document.getElementById('login-error').style.display = 'none';
+            loginError.style.display = 'none';
             loginForm.reset();
             checkAdminAuth();
         } else {
-            document.getElementById('login-error').style.display = 'block';
+            const result = loginLimiter.recordFailure();
+            if (result.locked) {
+                loginError.textContent = `🔒 Cuenta bloqueada temporalmente. Espera ${result.remainingSeconds} segundos.`;
+            } else {
+                loginError.textContent = `❌ ${res.error || 'Credenciales inválidas'}. ${result.attemptsLeft} intentos restantes.`;
+            }
+            loginError.style.display = 'block';
         }
     });
 
     document.getElementById('logout-btn')?.addEventListener('click', () => {
-        sessionStorage.removeItem('jy_admin_logged_in');
-        isLoggedIn = false;
-        checkAdminAuth();
+        JYSecurity.destroySession();
     });
 
     // Tabs
@@ -232,7 +288,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
             btn.classList.add('active');
-            document.getElementById(btn.dataset.tab).classList.add('active');
+            const tabId = btn.dataset.tab;
+            const allowedTabs = ['tab-inventory', 'tab-reservations', 'tab-users'];
+            if (allowedTabs.includes(tabId)) {
+                document.getElementById(tabId).classList.add('active');
+            }
         };
     });
 
@@ -247,6 +307,12 @@ document.addEventListener('DOMContentLoaded', () => {
     carImagesInput?.addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
         files.forEach(file => {
+            const validation = JYSecurity.validateFileUpload(file);
+            if (!validation.valid) {
+                alert(`⚠️ ${file.name}: ${validation.error}`);
+                return;
+            }
+
             const reader = new FileReader();
             reader.onload = (event) => {
                 const base64 = event.target.result;
@@ -255,17 +321,20 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             reader.readAsDataURL(file);
         });
-        carImagesInput.value = ''; // Reset to allow same file re-upload
+        carImagesInput.value = '';
     });
 
     function renderImagePreviews() {
         if(!imagePreviewContainer) return;
         imagePreviewContainer.innerHTML = '';
         tempCarImages.forEach((src, index) => {
+            const safeSrc = SURL(src);
+            if (!safeSrc) return;
+
             const div = document.createElement('div');
             div.className = 'preview-item';
             div.innerHTML = `
-                <img src="${src}" alt="Preview">
+                <img src="${safeSrc}" alt="Preview">
                 <button type="button" class="remove-img" data-index="${index}">&times;</button>
             `;
             imagePreviewContainer.appendChild(div);
@@ -273,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.querySelectorAll('.remove-img').forEach(btn => {
             btn.onclick = () => {
-                tempCarImages.splice(btn.dataset.index, 1);
+                tempCarImages.splice(parseInt(btn.dataset.index), 1);
                 renderImagePreviews();
             };
         });
@@ -288,21 +357,26 @@ document.addEventListener('DOMContentLoaded', () => {
         cars.forEach(car => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong>${car.brand}</strong> ${car.model}</td>
-                <td><span class="type-badge">${car.type}</span></td>
-                <td>$${car.price}</td>
+                <td><strong>${S(car.brand)}</strong> ${S(car.model)}</td>
+                <td><span class="type-badge">${S(car.type)}</span></td>
+                <td>$${S(String(car.price))}</td>
                 <td>
                     <div class="action-buttons">
-                        <button class="btn-action btn-edit-action" data-id="${car.id}" title="Editar">${iconEdit}</button>
-                        <button class="btn-action btn-delete-action" data-id="${car.id}" title="Borrar">${iconTrash}</button>
+                        <button class="btn-action btn-edit-action" data-id="${S(car.id)}" title="Editar">${iconEdit}</button>
+                        <button class="btn-action btn-delete-action" data-id="${S(car.id)}" title="Borrar">${iconTrash}</button>
                     </div>
                 </td>
             `;
             inventoryList.appendChild(tr);
         });
         document.querySelectorAll('.btn-edit-action').forEach(b => b.onclick = () => loadCar(b.dataset.id));
-        document.querySelectorAll('.btn-delete-action').forEach(b => b.onclick = () => {
-            if(confirm('¿Borrar auto?')) { cars = cars.filter(c => c.id !== b.dataset.id); saveToStorage(); renderInventory(); renderCatalog(); }
+        document.querySelectorAll('.btn-delete-action').forEach(b => b.onclick = async () => {
+            if(confirm('¿Borrar auto?')) {
+                try {
+                    await JYSecurity.apiRequest(`/cars/${b.dataset.id}`, { method: 'DELETE' });
+                    fetchCars();
+                } catch (err) { alert('Error al borrar car'); }
+            }
         });
     }
 
@@ -315,31 +389,37 @@ document.addEventListener('DOMContentLoaded', () => {
         adminFormContainer.style.display = 'block';
     });
 
-    adminForm?.addEventListener('submit', (e) => {
+    adminForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const id = document.getElementById('car-id').value;
+
+        const brand = document.getElementById('car-brand').value.trim();
+        const model = document.getElementById('car-model').value.trim();
+        const year = document.getElementById('car-year').value;
+        const price = document.getElementById('car-price').value;
+        const features = document.getElementById('car-features').value.trim();
+
+        if (!brand || !model || !year || !price || !features) {
+            alert('Por favor, completa todos los campos.');
+            return;
+        }
+
+        const id = document.getElementById('car-id').value || `car-${Date.now()}`;
         const data = {
-            id: id || `car-${Date.now()}`,
-            brand: document.getElementById('car-brand').value,
-            model: document.getElementById('car-model').value,
-            year: document.getElementById('car-year').value,
+            id, brand, model, year,
             type: document.getElementById('car-type').value,
-            price: document.getElementById('car-price').value,
-            image: tempCarImages[0] || 'https://via.placeholder.com/800x500', // Principal image
-            allImages: [...tempCarImages],
-            features: document.getElementById('car-features').value
+            price,
+            image: tempCarImages[0] || 'https://via.placeholder.com/800x500',
+            features
         };
 
-        if(id) {
-            const idx = cars.findIndex(c => c.id === id);
-            cars[idx] = data;
-        } else {
-            cars.push(data);
-        }
-        saveToStorage();
-        adminFormContainer.style.display = 'none';
-        renderInventory();
-        renderCatalog();
+        try {
+            await JYSecurity.apiRequest('/cars', {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+            adminFormContainer.style.display = 'none';
+            fetchCars();
+        } catch (err) { alert('Error al guardar vehículo.'); }
     });
 
     document.getElementById('admin-cancel-btn')?.addEventListener('click', () => adminFormContainer.style.display = 'none');
@@ -354,35 +434,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('car-year').value = car.year;
         document.getElementById('car-type').value = car.type;
         document.getElementById('car-price').value = car.price;
-        tempCarImages = car.allImages || (car.image ? [car.image] : []);
+        tempCarImages = car.image ? [car.image] : [];
         renderImagePreviews();
         document.getElementById('car-features').value = Array.isArray(car.features) ? car.features.join(', ') : car.features;
         adminFormContainer.style.display = 'block';
     }
 
     // CRUD: Reservations
-    window.editRes = (id) => {
-        const res = reservations.find(r => r.id == id);
-        if(!res) return;
-        
-        // Find the car to get price
-        const car = cars.find(c => c.brand + ' ' + c.model === res.carName);
-        
-        // Open the modal and fill it
-        openReservationModal(car ? car.id : null);
-        
-        // Override fields with existing reservation data
-        document.getElementById('res-name').value = res.customerName;
-        document.getElementById('res-phone').value = res.customerPhone;
-        document.getElementById('res-date').value = res.startDate;
-        document.getElementById('res-days').value = res.days;
-        updateResTotal();
-        
-        // Mark form for update
-        resForm.dataset.editId = id;
-    };
-    const resSearchInput = document.getElementById('res-search-input');
-
     function renderReservations(searchTerm = '') {
         const list = document.getElementById('reservations-list');
         if(!list) return;
@@ -393,22 +451,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (searchTerm) {
             const lowTerm = searchTerm.toLowerCase();
             filteredRes = filteredRes.filter(res => 
-                res.customerName.toLowerCase().includes(lowTerm) || 
-                res.carName.toLowerCase().includes(lowTerm) ||
-                res.customerPhone.includes(lowTerm)
+                (res.customerName || '').toLowerCase().includes(lowTerm) || 
+                (res.carName || '').toLowerCase().includes(lowTerm) ||
+                (res.customerPhone || '').includes(lowTerm)
             );
         }
 
-        filteredRes.sort((a,b) => b.timestamp - a.timestamp).forEach(res => {
+        filteredRes.forEach(res => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${new Date(res.timestamp).toLocaleDateString()}</td>
-                <td>${res.customerName}<br><small>${res.customerPhone}</small></td>
-                <td>${res.carName}</td>
-                <td>${res.days}d / ${res.total}</td>
+                <td>${S(new Date(res.timestamp).toLocaleDateString())}</td>
+                <td>${S(res.customerName)}<br><small>${S(res.customerPhone)}</small></td>
+                <td>${S(res.carName)}</td>
+                <td>${S(String(res.days))}d / ${S(res.total)}</td>
                 <td>
                     <div class="action-buttons">
-                        <button class="btn-action btn-edit-action" onclick="editRes(${res.id})" title="Editar">${iconEdit}</button>
                         <button class="btn-action btn-delete-action" onclick="deleteRes(${res.id})" title="Borrar">${iconTrash}</button>
                     </div>
                 </td>
@@ -417,85 +474,37 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    resSearchInput?.addEventListener('input', (e) => {
-        renderReservations(e.target.value);
-    });
-
-    window.deleteRes = (id) => {
-        if(confirm('¿Borrar reserva?')) { reservations = reservations.filter(r => r.id !== id); saveToStorage(); renderReservations(); }
-    };
-
-    // CRUD: Users
-    const userList = document.getElementById('users-list');
-    const userForm = document.getElementById('user-form');
-    const userContainer = document.getElementById('user-form-container');
-
-    function renderUsers() {
-        if(!userList) return;
-        userList.innerHTML = '';
-        users.forEach(u => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${u.username}</td>
-                <td>${u.role}</td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn-action btn-edit-action" onclick="loadUser(${u.id})" title="Editar">${iconEdit}</button>
-                        ${u.username !== 'admin' ? `<button class="btn-action btn-delete-action" onclick="deleteUser(${u.id})" title="Borrar">${iconTrash}</button>` : ''}
-                    </div>
-                </td>
-            `;
-            userList.appendChild(tr);
-        });
-    }
-
-    window.loadUser = (id) => {
-        const u = users.find(user => user.id == id);
-        if(!u) return;
-        document.getElementById('user-id').value = u.id;
-        document.getElementById('new-username').value = u.username;
-        document.getElementById('new-password').value = u.password;
-        document.getElementById('new-role').value = u.role || 'Admin';
-        document.getElementById('user-form-title').textContent = 'Editar Administrador';
-        userContainer.style.display = 'block';
-    };
-
-    document.getElementById('add-user-btn')?.addEventListener('click', () => {
-        userForm.reset();
-        document.getElementById('user-id').value = '';
-        document.getElementById('user-form-title').textContent = 'Crear Administrador';
-        userContainer.style.display = 'block';
-    });
-    document.getElementById('user-cancel-btn')?.addEventListener('click', () => userContainer.style.display = 'none');
-
-    userForm?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const id = document.getElementById('user-id').value;
-        const username = document.getElementById('new-username').value;
-        const password = document.getElementById('new-password').value;
-        const role = document.getElementById('new-role').value;
-// turbo
-        if (id) {
-            const idx = users.findIndex(u => u.id == id);
-            if (idx !== -1) {
-                users[idx].username = username;
-                users[idx].password = password;
-                users[idx].role = role;
-            }
-        } else {
-            users.push({ id: Date.now(), username, password, role: role });
+    window.deleteRes = async (id) => {
+        if(confirm('¿Borrar reserva?')) {
+            try {
+                await JYSecurity.apiRequest(`/reservations/${id}`, { method: 'DELETE' });
+                fetchReservations();
+            } catch (err) { alert('Error al borrar reserva.'); }
         }
-        
-        saveToStorage();
-        userContainer.style.display = 'none';
-        userForm.reset();
-        document.getElementById('user-id').value = '';
-        renderUsers();
-    });
-
-    window.deleteUser = (id) => {
-        if(confirm('¿Borrar usuario?')) { users = users.filter(u => u.id !== id); saveToStorage(); renderUsers(); }
     };
+
+    // Contact Form
+    document.getElementById('contact-form')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('contact-name').value.trim();
+        const email = document.getElementById('contact-email').value.trim();
+        const message = document.getElementById('contact-message').value.trim();
+
+        const validations = [
+            JYSecurity.validateInput(name, 'text'),
+            JYSecurity.validateInput(email, 'email'),
+            JYSecurity.validateInput(message, 'text')
+        ];
+        const firstError = validations.find(v => !v.valid);
+        if (firstError) {
+            alert(firstError.error);
+            return;
+        }
+
+        const contactMsg = `*NUEVO MENSAJE DE CONTACTO* ✉️\n\n*Nombre:* ${name}\n*Correo:* ${email}\n*Mensaje:* ${message}`;
+        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(contactMsg)}`, '_blank', 'noopener,noreferrer');
+        document.getElementById('contact-form').reset();
+    });
 
     // Filters
     filterBtns.forEach(btn => {
@@ -507,6 +516,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Final Init
-    renderCatalog();
-    checkAdminAuth();
+    function init() {
+        fetchCars();
+        checkAdminAuth();
+    }
+
+    init();
 });

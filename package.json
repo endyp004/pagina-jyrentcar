@@ -1,0 +1,23 @@
+{
+  "name": "pagina-jy-rentcar",
+  "version": "1.0.0",
+  "description": "Premium Car Rental Website",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx -y http-server . -p 8888 --cors -c-1 -o"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.19.1"
+  }
+}
