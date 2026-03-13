@@ -184,12 +184,13 @@ const JYSecurity = (() => {
         try {
             const session = JSON.parse(raw);
             if (Date.now() > session.expiresAt) {
-                destroySession();
+                // Don't call destroySession here to avoid recursion/loops
+                STORAGE.removeItem(SESSION_KEY);
                 return { valid: false, username: null };
             }
             return { valid: true, username: session.username };
         } catch {
-            destroySession();
+            STORAGE.removeItem(SESSION_KEY);
             return { valid: false, username: null };
         }
     }
@@ -197,7 +198,10 @@ const JYSecurity = (() => {
     /** Destroy the current session */
     function destroySession() {
         STORAGE.removeItem(SESSION_KEY);
-        window.location.hash = '#home';
+        // Clear immediately to prevent any race conditions
+        if (window.location.hash !== '#home') {
+            window.location.hash = '#home';
+        }
         location.reload();
     }
 
@@ -256,7 +260,7 @@ const JYSecurity = (() => {
             const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
             return {
                 valid: false,
-                error: `Archivo demasiado grande (${sizeMB}MB). Máximo permitido: 5MB.`
+                error: `Archivo demasiado grande (${sizeMB}MB). Máximo permitido: 20MB.`
             };
         }
 

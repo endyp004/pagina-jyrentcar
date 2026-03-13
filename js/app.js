@@ -263,7 +263,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const submitBtn = loginForm.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.textContent;
+
         try {
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏱️ Cargando...';
+
             const res = await JYSecurity.login(u, p);
             if (res.success) {
                 loginLimiter.reset();
@@ -284,6 +290,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Login submit error:', err);
             loginError.textContent = '❌ Error de comunicación con el servidor. Inténtalo de nuevo.';
             loginError.style.display = 'block';
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
         }
     });
 

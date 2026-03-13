@@ -1206,6 +1206,25 @@ input::placeholder, textarea::placeholder {
     margin: 0.5rem 0;
 }
 
+/* Login Error Message */
+.login-error-msg {
+    color: #ff4d4d;
+    background: rgba(255, 77, 77, 0.1);
+    border: 1px solid rgba(255, 77, 77, 0.3);
+    padding: 0.8rem;
+    border-radius: var(--border-radius-md);
+    font-size: 0.9rem;
+    margin-top: 1rem;
+    text-align: center;
+    animation: shake 0.4s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
 .admin-header {
     display: flex;
     justify-content: space-between;
