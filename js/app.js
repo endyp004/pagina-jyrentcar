@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
             card.innerHTML = `
                 <div class="car-image-container">
                     <div class="car-badge">${safeType}</div>
-                    <img src="${safeImage}" alt="${safeBrand}" class="car-image" onerror="this.src='images/car-placeholder.png'">
+                    <img src="${safeImage}" alt="${safeBrand}" class="car-image" onerror="this.onerror=null; this.src='images/car-placeholder.png'">
                 </div>
                 <div class="car-content">
                     <h3 class="car-brand-model">${safeBrand} <span>${safeModel}</span></h3>
