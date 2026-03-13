@@ -189,25 +189,33 @@ app.delete('/api/users/:id', verifyToken, async (req, res) => {
 
 // --- Database Initialization & Startup ---
 async function startServer() {
-    try {
-        await initializeDB();
-        
-        // Seed or Reset Initial User
-        const [rows] = await pool.query('SELECT * FROM users WHERE username = ?', ['admin']);
-        const hashedPwd = await bcrypt.hash('1234', 10);
-        if (rows.length === 0) {
-            await pool.query('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['admin', hashedPwd, 'Super Admin']);
-            console.log('👤 Default admin user created (admin / 1234)');
-        } else {
-            // Update to ensure the password is what the user expects (1234)
-            await pool.query('UPDATE users SET password = ? WHERE username = ?', [hashedPwd, 'admin']);
-            console.log('👤 Admin password reset to default (1234)');
-        }
+    let retries = 5;
+    while (retries > 0) {
+        try {
+            await initializeDB();
+            
+            // Seed or Reset Initial User
+            const [rows] = await pool.query('SELECT * FROM users WHERE username = ?', ['admin']);
+            const hashedPwd = await bcrypt.hash('1234', 10);
+            if (rows.length === 0) {
+                await pool.query('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['admin', hashedPwd, 'Super Admin']);
+                console.log('👤 Default admin user created (admin / 1234)');
+            } else {
+                await pool.query('UPDATE users SET password = ? WHERE username = ?', [hashedPwd, 'admin']);
+                console.log('👤 Admin password reset to default (1234)');
+            }
 
-        app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
-    } catch (err) {
-        console.error('❌ Critical error during startup:', err);
-        process.exit(1);
+            app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+            return; // Success!
+        } catch (err) {
+            console.error(`⚠️ Connection attempt failed. Retries left: ${retries - 1}`);
+            retries--;
+            if (retries === 0) {
+                console.error('❌ Critical error: Max retries reached during startup.');
+                process.exit(1);
+            }
+            await new Promise(res => setTimeout(res, 5000)); // Wait 5 seconds
+        }
     }
 }
 
