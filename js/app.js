@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const rawFeatures = Array.isArray(car.features) ? car.features : (car.features || '').split(',');
             const featuresHTML = rawFeatures.map(f => `<span class="feature-tag">${S(f.trim())}</span>`).join('');
             
-            const safeImage = SURL(car.image) || 'https://via.placeholder.com/800x500';
+            const safeImage = SURL(car.image) || 'images/car-placeholder.png';
             const safeBrand = S(car.brand);
             const safeModel = S(car.model);
             const safeYear = S(String(car.year));
@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
             card.innerHTML = `
                 <div class="car-image-container">
                     <div class="car-badge">${safeType}</div>
-                    <img src="${safeImage}" alt="${safeBrand}" class="car-image" onerror="this.src='https://via.placeholder.com/800x500'">
+                    <img src="${safeImage}" alt="${safeBrand}" class="car-image" onerror="this.src='images/car-placeholder.png'">
                 </div>
                 <div class="car-content">
                     <h3 class="car-brand-model">${safeBrand} <span>${safeModel}</span></h3>
@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const car = cars.find(c => c.id === carId);
         if(!car) return;
 
-        const safeImage = SURL(car.image) || 'https://via.placeholder.com/800x500';
+        const safeImage = SURL(car.image) || 'images/car-placeholder.png';
         document.getElementById('modal-car-preview').innerHTML = `
             <img src="${safeImage}" alt="${S(car.brand)}" style="width:80px; height:50px; object-fit:cover; border-radius:4px;">
             <div class="preview-details"><strong>${S(car.brand)} ${S(car.model)}</strong><span>$${S(String(car.price))}/día</span></div>
@@ -408,7 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
             id, brand, model, year,
             type: document.getElementById('car-type').value,
             price,
-            image: tempCarImages[0] || 'https://via.placeholder.com/800x500',
+            image: tempCarImages[0] || 'images/car-placeholder.png',
             features
         };
 
