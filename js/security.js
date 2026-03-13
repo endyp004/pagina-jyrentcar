@@ -121,6 +121,7 @@ const JYSecurity = (() => {
         ? 'http://localhost:3000/api' 
         : '/api';
     const SESSION_KEY = 'jy_session';
+    const STORAGE = localStorage; // Changed from sessionStorage for persistence on refresh
 
     /**
      * Authenticate with the backend
@@ -144,7 +145,7 @@ const JYSecurity = (() => {
                     role: data.role,
                     expiresAt: Date.now() + (60 * 60 * 1000) // 1 hour
                 };
-                sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+                STORAGE.setItem(SESSION_KEY, JSON.stringify(session));
                 return { success: true };
             }
             return { success: false, error: data.error };
@@ -159,7 +160,7 @@ const JYSecurity = (() => {
      * @returns {string|null}
      */
     function getToken() {
-        const raw = sessionStorage.getItem(SESSION_KEY);
+        const raw = STORAGE.getItem(SESSION_KEY);
         if (!raw) return null;
         try {
             const session = JSON.parse(raw);
@@ -178,7 +179,7 @@ const JYSecurity = (() => {
      * @returns {{ valid: boolean, username: string|null }}
      */
     function validateSession() {
-        const raw = sessionStorage.getItem(SESSION_KEY);
+        const raw = STORAGE.getItem(SESSION_KEY);
         if (!raw) return { valid: false, username: null };
         try {
             const session = JSON.parse(raw);
@@ -195,7 +196,7 @@ const JYSecurity = (() => {
 
     /** Destroy the current session */
     function destroySession() {
-        sessionStorage.removeItem(SESSION_KEY);
+        STORAGE.removeItem(SESSION_KEY);
         window.location.hash = '#home';
         location.reload();
     }
@@ -234,7 +235,7 @@ const JYSecurity = (() => {
     // ===== 5. File Upload Validation =====
 
     const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+    const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
 
     /**
      * Validate an uploaded file.

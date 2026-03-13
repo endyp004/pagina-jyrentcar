@@ -245,6 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loginForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const loginError = document.getElementById('login-error');
+        loginError.style.display = 'none'; // Clear previous
 
         const status = loginLimiter.getStatus();
         if (status.locked) {
@@ -262,21 +263,26 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const res = await JYSecurity.login(u, p);
-
-        if (res.success) {
-            loginLimiter.reset();
-            isLoggedIn = true;
-            loginError.style.display = 'none';
-            loginForm.reset();
-            checkAdminAuth();
-        } else {
-            const result = loginLimiter.recordFailure();
-            if (result.locked) {
-                loginError.textContent = `🔒 Cuenta bloqueada temporalmente. Espera ${result.remainingSeconds} segundos.`;
+        try {
+            const res = await JYSecurity.login(u, p);
+            if (res.success) {
+                loginLimiter.reset();
+                isLoggedIn = true;
+                loginError.style.display = 'none';
+                loginForm.reset();
+                checkAdminAuth();
             } else {
-                loginError.textContent = `❌ ${res.error || 'Credenciales inválidas'}. ${result.attemptsLeft} intentos restantes.`;
+                const result = loginLimiter.recordFailure();
+                if (result.locked) {
+                    loginError.textContent = `🔒 Cuenta bloqueada temporalmente. Espera ${result.remainingSeconds} segundos.`;
+                } else {
+                    loginError.textContent = `❌ ${res.error || 'Credenciales inválidas'}. ${result.attemptsLeft} intentos restantes.`;
+                }
+                loginError.style.display = 'block';
             }
+        } catch (err) {
+            console.error('Login submit error:', err);
+            loginError.textContent = '❌ Error de comunicación con el servidor. Inténtalo de nuevo.';
             loginError.style.display = 'block';
         }
     });
