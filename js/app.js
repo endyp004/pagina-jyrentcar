@@ -313,13 +313,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const base64 = event.target.result;
-                tempCarImages.push(base64);
-                renderImagePreviews();
-            };
-            reader.readAsDataURL(file);
+            // Store file and a local preview URL
+            tempCarImages.push({
+                file: file,
+                preview: URL.createObjectURL(file)
+            });
+            renderImagePreviews();
         });
         carImagesInput.value = '';
     });
@@ -327,14 +326,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderImagePreviews() {
         if(!imagePreviewContainer) return;
         imagePreviewContainer.innerHTML = '';
-        tempCarImages.forEach((src, index) => {
-            const safeSrc = SURL(src);
-            if (!safeSrc) return;
-
+        tempCarImages.forEach((imgObj, index) => {
             const div = document.createElement('div');
             div.className = 'preview-item';
             div.innerHTML = `
-                <img src="${safeSrc}" alt="Preview">
+                <img src="${imgObj.preview}" alt="Preview">
                 <button type="button" class="remove-img" data-index="${index}">&times;</button>
             `;
             imagePreviewContainer.appendChild(div);
@@ -342,7 +338,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.querySelectorAll('.remove-img').forEach(btn => {
             btn.onclick = () => {
-                tempCarImages.splice(parseInt(btn.dataset.index), 1);
+                const index = parseInt(btn.dataset.index);
+                // Revoke URL to prevent memory leaks
+                URL.revokeObjectURL(tempCarImages[index].preview);
+                tempCarImages.splice(index, 1);
                 renderImagePreviews();
             };
         });
@@ -404,18 +403,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const id = document.getElementById('car-id').value || `car-${Date.now()}`;
-        const data = {
-            id, brand, model, year,
-            type: document.getElementById('car-type').value,
-            price,
-            image: tempCarImages[0] || 'images/car-placeholder.png',
-            features
-        };
+        
+        const formData = new FormData();
+        formData.append('id', id);
+        formData.append('brand', brand);
+        formData.append('model', model);
+        formData.append('year', year);
+        formData.append('type', document.getElementById('car-type').value);
+        formData.append('price', price);
+        formData.append('features', features);
+
+        // Append the file if present
+        if (tempCarImages.length > 0) {
+            formData.append('imageFile', tempCarImages[0].file);
+        } else {
+            // Find car if editing
+            const carId = document.getElementById('car-id').value;
+            const existingCar = carId ? cars.find(c => c.id === carId) : null;
+            formData.append('image', existingCar ? existingCar.image : 'images/car-placeholder.png');
+        }
 
         try {
             await JYSecurity.apiRequest('/cars', {
                 method: 'POST',
-                body: JSON.stringify(data)
+                body: formData
             });
             adminFormContainer.style.display = 'none';
             fetchCars();

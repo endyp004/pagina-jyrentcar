@@ -2,7 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+const sharp = require('sharp');
 const { pool, initializeDB } = require('./db');
 
 const app = express();
@@ -11,6 +14,22 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key_123';
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+
+// Ensure uploads directory exists
+const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
+// Serve uploads statically (fallback if Nginx isn't used)
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+// Configure Multer (Store in memory temporarily)
+const storage = multer.memoryStorage();
+const upload = multer({ 
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 // --- Auth Routes ---
 app.post('/api/auth/login', async (req, res) => {
@@ -52,15 +71,30 @@ app.get('/api/cars', async (req, res) => {
     }
 });
 
-app.post('/api/cars', verifyToken, async (req, res) => {
-    const { id, brand, model, year, type, price, image, features } = req.body;
+app.post('/api/cars', verifyToken, upload.single('imageFile'), async (req, res) => {
+    const { id, brand, model, year, type, price, features } = req.body;
+    let imagePath = req.body.image; // Fallback to existing path or base64 if no new file
+
     try {
+        if (req.file) {
+            const filename = `car_${Date.now()}.webp`;
+            const filepath = path.join(UPLOADS_DIR, filename);
+
+            await sharp(req.file.buffer)
+                .resize(1200, 800, { fit: 'inside', withoutEnlargement: true })
+                .webp({ quality: 80 })
+                .toFile(filepath);
+            
+            imagePath = `uploads/${filename}`;
+        }
+
         await pool.query(
             'INSERT INTO cars (id, brand, model, year, type, price, image, features) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE brand=?, model=?, year=?, type=?, price=?, image=?, features=?',
-            [id, brand, model, year, type, price, image, features, brand, model, year, type, price, image, features]
+            [id, brand, model, year, type, price, imagePath, features, brand, model, year, type, price, imagePath, features]
         );
-        res.json({ success: true });
+        res.json({ success: true, image: imagePath });
     } catch (err) {
+        console.error('Upload Error:', err);
         res.status(500).json({ error: err.message });
     }
 });

@@ -208,10 +208,14 @@ const JYSecurity = (() => {
     async function apiRequest(endpoint, options = {}) {
         const token = getToken();
         const headers = {
-            'Content-Type': 'application/json',
             ...(token ? { 'Authorization': token } : {}),
             ...options.headers
         };
+
+        // Don't set Content-Type if body is FormData (fetch sets it with boundary)
+        if (!(options.body instanceof FormData)) {
+            headers['Content-Type'] = 'application/json';
+        }
 
         try {
             const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
