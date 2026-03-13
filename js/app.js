@@ -234,9 +234,11 @@ document.addEventListener('DOMContentLoaded', () => {
         isLoggedIn = session.valid;
         adminLoginView.style.display = isLoggedIn ? 'none' : 'flex';
         adminDashboardView.style.display = isLoggedIn ? 'block' : 'none';
+        
         if (isLoggedIn) {
             fetchCars();
             fetchReservations();
+            fetchUsers();
         }
     }
 
@@ -613,8 +615,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Final Init
     function init() {
         fetchCars();
-        fetchReservations();
-        fetchUsers();
         checkAdminAuth();
     }
 
