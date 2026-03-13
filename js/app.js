@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==== Data Management (API) ====
     let cars = [];
     let reservations = [];
+    let users = [];
 
     async function fetchCars() {
         try {
@@ -494,6 +495,89 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // CRUD: Users
+    async function fetchUsers() {
+        try {
+            users = await JYSecurity.apiRequest('/users');
+            renderUsers();
+        } catch (err) { console.error('Error fetching users:', err); }
+    }
+
+    function renderUsers() {
+        const list = document.getElementById('users-list');
+        if(!list) return;
+        list.innerHTML = '';
+        users.forEach(user => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${S(user.username)}</strong></td>
+                <td><span class="type-badge">${S(user.role)}</span></td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-action btn-edit-user" data-id="${user.id}" title="Editar">${iconEdit}</button>
+                        <button class="btn-action btn-delete-user" data-id="${user.id}" title="Borrar">${iconTrash}</button>
+                    </div>
+                </td>
+            `;
+            list.appendChild(tr);
+        });
+        document.querySelectorAll('.btn-edit-user').forEach(b => b.onclick = () => loadUser(Number(b.dataset.id)));
+        document.querySelectorAll('.btn-delete-user').forEach(b => b.onclick = () => deleteUser(Number(b.dataset.id)));
+    }
+
+    document.getElementById('add-user-btn')?.addEventListener('click', () => {
+        document.getElementById('user-form').reset();
+        document.getElementById('user-id').value = '';
+        document.getElementById('user-form-title').textContent = 'Crear Administrador';
+        document.getElementById('user-form-container').style.display = 'block';
+    });
+
+    document.getElementById('user-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('user-id').value;
+        const username = document.getElementById('new-username').value.trim();
+        const password = document.getElementById('new-password').value;
+        const role = document.getElementById('new-role').value;
+
+        try {
+            await JYSecurity.apiRequest('/users', {
+                method: 'POST',
+                body: JSON.stringify({ id, username, password, role })
+            });
+            document.getElementById('user-form-container').style.display = 'none';
+            fetchUsers();
+        } catch (err) { alert('Error al guardar usuario.'); }
+    });
+
+    document.getElementById('user-cancel-btn')?.addEventListener('click', () => {
+        document.getElementById('user-form-container').style.display = 'none';
+    });
+
+    function loadUser(id) {
+        const user = users.find(u => u.id === id);
+        if(!user) return;
+        document.getElementById('user-form-title').textContent = 'Editar Usuario';
+        document.getElementById('user-id').value = user.id;
+        document.getElementById('new-username').value = user.username;
+        document.getElementById('new-password').value = ''; // Don't show old hash
+        document.getElementById('new-password').required = false; // Not required for edit
+        document.getElementById('new-role').value = user.role;
+        document.getElementById('user-form-container').style.display = 'block';
+    }
+
+    async function deleteUser(id) {
+        if(confirm('¿Seguro que deseas eliminar este usuario?')) {
+            try {
+                const res = await JYSecurity.apiRequest(`/users/${id}`, { method: 'DELETE' });
+                if (res.error) {
+                    alert(res.error);
+                } else {
+                    fetchUsers();
+                }
+            } catch (err) { alert('Error al borrar usuario.'); }
+        }
+    }
+
     // Contact Form
     document.getElementById('contact-form')?.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -529,6 +613,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Final Init
     function init() {
         fetchCars();
+        fetchReservations();
+        fetchUsers();
         checkAdminAuth();
     }
 

@@ -140,6 +140,53 @@ app.delete('/api/reservations/:id', verifyToken, async (req, res) => {
     }
 });
 
+// --- User Management Routes ---
+app.get('/api/users', verifyToken, async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT id, username, role, created_at FROM users');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/users', verifyToken, async (req, res) => {
+    const { id, username, password, role } = req.body;
+    try {
+        if (id) {
+            // Update
+            if (password) {
+                const hashed = await bcrypt.hash(password, 10);
+                await pool.query('UPDATE users SET username=?, password=?, role=? WHERE id=?', [username, hashed, role, id]);
+            } else {
+                await pool.query('UPDATE users SET username=?, role=? WHERE id=?', [username, role, id]);
+            }
+        } else {
+            // Create
+            const hashed = await bcrypt.hash(password, 10);
+            await pool.query('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', [username, hashed, role]);
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/users/:id', verifyToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Prevent deleting original admin (id=1 usually, but let's check username too)
+        const [user] = await pool.query('SELECT username FROM users WHERE id = ?', [id]);
+        if (user.length > 0 && user[0].username === 'admin') {
+            return res.status(403).json({ error: 'No se puede eliminar el usuario administrador principal.' });
+        }
+        await pool.query('DELETE FROM users WHERE id = ?', [id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // --- Database Initialization & Startup ---
 async function startServer() {
     try {
