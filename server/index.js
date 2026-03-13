@@ -66,34 +66,75 @@ const verifyToken = (req, res, next) => {
 app.get('/api/cars', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM cars');
-        res.json(rows);
+        // Parse image JSON strings
+        const parsedRows = rows.map(car => {
+            let images = [];
+            try {
+                if (car.image) {
+                    if (car.image.startsWith('[')) {
+                        images = JSON.parse(car.image);
+                    } else {
+                        images = [car.image];
+                    }
+                }
+            } catch (e) {
+                images = car.image ? [car.image] : [];
+            }
+            return { ...car, image: images };
+        });
+        res.json(parsedRows);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-app.post('/api/cars', verifyToken, upload.single('imageFile'), async (req, res) => {
+app.post('/api/cars', verifyToken, upload.array('imageFiles', 10), async (req, res) => {
     const { id, brand, model, year, type, price, features } = req.body;
-    let imagePath = req.body.image; // Fallback to existing path or base64 if no new file
+    let imagePaths = [];
 
     try {
-        if (req.file) {
-            const filename = `car_${Date.now()}.webp`;
-            const filepath = path.join(UPLOADS_DIR, filename);
-
-            await sharp(req.file.buffer)
-                .resize(1200, 800, { fit: 'inside', withoutEnlargement: true })
-                .webp({ quality: 80 })
-                .toFile(filepath);
-            
-            imagePath = `uploads/${filename}`;
+        // Handle existing images if editing
+        if (req.body.image) {
+            try {
+                if (req.body.image.startsWith('[')) {
+                    imagePaths = JSON.parse(req.body.image);
+                } else {
+                    imagePaths = [req.body.image];
+                }
+            } catch(e) {
+                imagePaths = [req.body.image];
+            }
         }
+
+        // Process new files
+        if (req.files && req.files.length > 0) {
+            const newImagePaths = await Promise.all(req.files.map(async (file, index) => {
+                const filename = `car_${Date.now()}_${index}.webp`;
+                const filepath = path.join(UPLOADS_DIR, filename);
+
+                await sharp(file.buffer)
+                    .resize(1200, 800, { fit: 'inside', withoutEnlargement: true })
+                    .webp({ quality: 80 })
+                    .toFile(filepath);
+                
+                return `uploads/${filename}`;
+            }));
+
+            // If it's a new car or we want to replace, we merge or replace?
+            // Usually, if they upload new ones, we might want to ADD or REPLACE.
+            // Let's assume for now that new uploads REPLACE if it's a fresh submission, 
+            // but for editing we'll need more complex logic.
+            // For now, let's REPLACE to keep it simple unless we add a "preserve existing" flag.
+            imagePaths = newImagePaths;
+        }
+
+        const imageJson = JSON.stringify(imagePaths);
 
         await pool.query(
             'INSERT INTO cars (id, brand, model, year, type, price, image, features) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE brand=?, model=?, year=?, type=?, price=?, image=?, features=?',
-            [id, brand, model, year, type, price, imagePath, features, brand, model, year, type, price, imagePath, features]
+            [id, brand, model, year, type, price, imageJson, features, brand, model, year, type, price, imageJson, features]
         );
-        res.json({ success: true, image: imagePath });
+        res.json({ success: true, images: imagePaths });
     } catch (err) {
         console.error('Upload Error:', err);
         res.status(500).json({ error: err.message });

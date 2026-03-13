@@ -108,7 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const rawFeatures = Array.isArray(car.features) ? car.features : (car.features || '').split(',');
             const featuresHTML = rawFeatures.map(f => `<span class="feature-tag">${S(f.trim())}</span>`).join('');
             
-            const safeImage = SURL(car.image) || 'images/car-placeholder.png';
+            const images = Array.isArray(car.image) ? car.image : [];
+            const safeImage = images.length > 0 ? SURL(images[0]) : 'images/car-placeholder.png';
             const safeBrand = S(car.brand);
             const safeModel = S(car.model);
             const safeYear = S(String(car.year));
@@ -150,10 +151,32 @@ document.addEventListener('DOMContentLoaded', () => {
         const car = cars.find(c => c.id === carId);
         if(!car) return;
 
-        const safeImage = SURL(car.image) || 'images/car-placeholder.png';
+        const images = Array.isArray(car.image) ? car.image : [];
+        const mainImage = images.length > 0 ? SURL(images[0]) : 'images/car-placeholder.png';
+        
+        let galleryHTML = '';
+        if (images.length > 1) {
+            galleryHTML = `
+                <div class="car-gallery-small">
+                    ${images.map((img, idx) => `
+                        <img src="${SURL(img)}" class="gallery-thumb ${idx === 0 ? 'active' : ''}" 
+                             onclick="this.parentElement.parentElement.querySelector('.main-modal-img').src=this.src; 
+                                      this.parentElement.querySelectorAll('.gallery-thumb').forEach(t=>t.classList.remove('active')); 
+                                      this.classList.add('active');">
+                    `).join('')}
+                </div>
+            `;
+        }
+
         document.getElementById('modal-car-preview').innerHTML = `
-            <img src="${safeImage}" alt="${S(car.brand)}" style="width:80px; height:50px; object-fit:cover; border-radius:4px;">
-            <div class="preview-details"><strong>${S(car.brand)} ${S(car.model)}</strong><span>$${S(String(car.price))}/día</span></div>
+            <div class="modal-gallery-container">
+                <img src="${mainImage}" alt="${S(car.brand)}" class="main-modal-img">
+                ${galleryHTML}
+            </div>
+            <div class="preview-details">
+                <strong>${S(car.brand)} ${S(car.model)}</strong>
+                <span>$${S(String(car.price))}/día</span>
+            </div>
         `;
         document.getElementById('res-car-name').value = `${car.brand} ${car.model}`;
         document.getElementById('res-car-price').value = car.price;
@@ -431,14 +454,27 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('price', price);
         formData.append('features', features);
 
-        // Append the file if present
+        // Append all selected files
         if (tempCarImages.length > 0) {
-            formData.append('imageFile', tempCarImages[0].file);
-        } else {
-            // Find car if editing
-            const carId = document.getElementById('car-id').value;
-            const existingCar = carId ? cars.find(c => c.id === carId) : null;
-            formData.append('image', existingCar ? existingCar.image : 'images/car-placeholder.png');
+            tempCarImages.forEach(imgObj => {
+                if (imgObj.file) {
+                    formData.append('imageFiles', imgObj.file);
+                }
+            });
+            
+            // If some are already uploaded (editing), keep them? 
+            // For now, if NEW files are uploaded, they replace all old ones in the backend.
+            // If NO new files are uploaded, we send the existing ones.
+        }
+        
+        // Find existing images if editing and no new files uploaded
+        const carId = document.getElementById('car-id').value;
+        const existingCar = carId ? cars.find(c => c.id === carId) : null;
+        
+        if (tempCarImages.length === 0 && existingCar) {
+            formData.append('image', JSON.stringify(existingCar.image));
+        } else if (tempCarImages.length === 0) {
+            formData.append('image', JSON.stringify(['images/car-placeholder.png']));
         }
 
         try {
@@ -463,7 +499,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('car-year').value = car.year;
         document.getElementById('car-type').value = car.type;
         document.getElementById('car-price').value = car.price;
-        tempCarImages = car.image ? [car.image] : [];
+        const images = Array.isArray(car.image) ? car.image : (car.image ? [car.image] : []);
+        tempCarImages = images.map(img => ({
+            file: null,
+            preview: SURL(img)
+        }));
         renderImagePreviews();
         document.getElementById('car-features').value = Array.isArray(car.features) ? car.features.join(', ') : car.features;
         adminFormContainer.style.display = 'block';
