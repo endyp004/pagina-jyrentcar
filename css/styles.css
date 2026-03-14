@@ -615,7 +615,7 @@ input::placeholder, textarea::placeholder {
 }
 
 .car-image-container {
-    height: 280px; /* Increased to show full vehicle */
+    height: 320px; /* Further increased to show full vehicle more comfortably */
     overflow: hidden;
     position: relative;
     background-color: var(--clr-bg-surface);
@@ -690,12 +690,12 @@ input::placeholder, textarea::placeholder {
     padding-top: var(--spacing-md);
 }
 
-.car-price {
+.price-amount {
     font-size: 1.5rem;
-    font-weight: bold;
-    color: white;
+    font-weight: 800; /* Extra bold */
+    color: #ffffff; /* Explicit white for better visibility */
+    display: block;
 }
-
 .car-price span {
     font-size: 0.9rem;
     color: var(--clr-text-secondary);
