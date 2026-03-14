@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const featuresHTML = rawFeatures.map(f => `<span class="feature-tag">${S(f.trim())}</span>`).join('');
             
             const images = Array.isArray(car.image) ? car.image : [];
-            const safeImage = images.length > 0 ? SURL(images[0]) : 'images/car-placeholder.png';
+            const safeImage = images.length > 0 ? JYSecurity.resolveImageURL(images[0]) : 'images/car-placeholder.png';
             const safeBrand = S(car.brand);
             const safeModel = S(car.model);
             const safeYear = S(String(car.year));
@@ -117,24 +117,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const safeType = S(typeLabels[car.type] || car.type);
             const safeId = S(car.id);
 
-            const card = document.createElement('div');
-            card.className = 'car-card';
-            card.innerHTML = `
-                <div class="car-image-container">
-                    <div class="car-badge">${safeType}</div>
-                    <img src="${safeImage}" alt="${safeBrand}" class="car-image" onerror="this.onerror=null; this.src='images/car-placeholder.png'">
-                </div>
-                <div class="car-content">
-                    <h3 class="car-brand-model">${safeBrand} <span>${safeModel}</span></h3>
-                    <p class="car-year">Año: ${safeYear}</p>
-                    <div class="car-features-list">${featuresHTML}</div>
-                    <div class="car-footer">
-                        <div class="car-price">$${safePrice} <span>/día</span></div>
-                        <button class="btn btn-primary btn-reserve-trigger" data-id="${safeId}">Reservar</button>
-                    </div>
-                </div>
-            `;
             catalogGrid.appendChild(card);
+
+            // Make entire card clickable
+            card.onclick = (e) => {
+                // If the user didn't click the reserve button specifically
+                if (!e.target.classList.contains('btn-reserve-trigger')) {
+                    openReservationModal(car.id);
+                }
+            };
         });
 
         document.querySelectorAll('.btn-reserve-trigger').forEach(btn => {
@@ -152,14 +143,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!car) return;
 
         const images = Array.isArray(car.image) ? car.image : [];
-        const mainImage = images.length > 0 ? SURL(images[0]) : 'images/car-placeholder.png';
+        const mainImage = images.length > 0 ? JYSecurity.resolveImageURL(images[0]) : 'images/car-placeholder.png';
         
         let galleryHTML = '';
         if (images.length > 1) {
             galleryHTML = `
                 <div class="car-gallery-small">
                     ${images.map((img, idx) => `
-                        <img src="${SURL(img)}" class="gallery-thumb ${idx === 0 ? 'active' : ''}" 
+                        <img src="${JYSecurity.resolveImageURL(img)}" class="gallery-thumb ${idx === 0 ? 'active' : ''}" 
                              onclick="this.parentElement.parentElement.querySelector('.main-modal-img').src=this.src; 
                                       this.parentElement.querySelectorAll('.gallery-thumb').forEach(t=>t.classList.remove('active')); 
                                       this.classList.add('active');">
@@ -502,7 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const images = Array.isArray(car.image) ? car.image : (car.image ? [car.image] : []);
         tempCarImages = images.map(img => ({
             file: null,
-            preview: SURL(img)
+            preview: JYSecurity.resolveImageURL(img)
         }));
         renderImagePreviews();
         document.getElementById('car-features').value = Array.isArray(car.features) ? car.features.join(', ') : car.features;

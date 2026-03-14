@@ -27,17 +27,36 @@ const JYSecurity = (() => {
     }
 
     /**
-     * Sanitize a URL string — only allows http, https, and data URIs for images.
+     * Sanitize a URL string — only allows http, https, relative paths, and data URIs for images.
      * @param {string} url
      * @returns {string} Safe URL or empty string
      */
     function sanitizeURL(url) {
         if (typeof url !== 'string') return '';
         const trimmed = url.trim();
-        // Allow https, http, and data:image URIs only
+        // Allow relative paths (e.g., uploads/..., images/...)
+        if (/^(uploads\/|images\/)/i.test(trimmed)) return trimmed;
+        // Allow https, http, and data:image URIs
         if (/^https?:\/\//i.test(trimmed)) return trimmed;
         if (/^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,/i.test(trimmed)) return trimmed;
         return '';
+    }
+
+    /**
+     * Resolve image URL based on environment.
+     * @param {string} url 
+     * @returns {string} Fully qualified or safe relative URL
+     */
+    function resolveImageURL(url) {
+        const safe = sanitizeURL(url);
+        if (!safe) return 'images/car-placeholder.png';
+        
+        // If it's a relative upload and we are on a different port than the API (dev)
+        if (safe.startsWith('uploads/') && API_URL.startsWith('http')) {
+            const apiBase = API_URL.replace('/api', '');
+            return `${apiBase}/${safe}`;
+        }
+        return safe;
     }
 
 
@@ -314,6 +333,7 @@ const JYSecurity = (() => {
     return {
         sanitizeHTML,
         sanitizeURL,
+        resolveImageURL,
         hashPassword,
         RateLimiter,
         login,
