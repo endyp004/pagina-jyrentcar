@@ -9,12 +9,35 @@ document.addEventListener('DOMContentLoaded', () => {
     let users = [];
     let isLoggedIn = false;
 
-    // ==== UI Interaction: Navigation SPA & Mobile Menu ====
+    // ==== UI Elements ====
+    // Navigation
     const navLinks = document.querySelectorAll('[data-view]');
     const viewSections = document.querySelectorAll('.view-section');
     const hamburgerMenu = document.getElementById('hamburger-menu');
     const navLinksContainer = document.querySelector('.nav-links');
     const header = document.querySelector('.main-header');
+
+    // Catalog & Modal
+    const catalogGrid = document.getElementById('catalog-grid');
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const resModal = document.getElementById('reservation-modal');
+    const resForm = document.getElementById('reservation-form');
+
+    // Admin Panel
+    const adminLoginView = document.getElementById('admin-login-view');
+    const adminDashboardView = document.getElementById('admin-dashboard-view');
+    const loginForm = document.getElementById('login-form');
+    const inventoryList = document.getElementById('inventory-list');
+    const adminForm = document.getElementById('admin-form');
+    const adminFormContainer = document.getElementById('admin-form-container');
+    const carImagesInput = document.getElementById('car-images-input');
+    const imagePreviewContainer = document.getElementById('image-preview-container');
+
+    // Utilities
+    const loginLimiter = new JYSecurity.RateLimiter(5, 30000);
+    const WHATSAPP_NUMBER = "18296196000";
+
+    // ==== UI Interaction: Navigation SPA & Mobile Menu ====
 
     window.addEventListener('scroll', () => {
         header.classList.toggle('scrolled', window.scrollY > 50);
@@ -91,9 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ==== Catalog Logic ====
-    const catalogGrid = document.getElementById('catalog-grid');
-    const filterBtns = document.querySelectorAll('.filter-btn');
+    // (Moved to top)
 
     function renderCatalog(filterType = 'all') {
         if (!catalogGrid) return;
@@ -135,10 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ==== Reservation Modal ====
-    const resModal = document.getElementById('reservation-modal');
-    const resForm = document.getElementById('reservation-form');
-    const WHATSAPP_NUMBER = "18296196000";
+    // (Moved to top)
 
     function openReservationModal(carId) {
         const car = cars.find(c => c.id === carId);
@@ -238,11 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ==== Admin Panel Logic ====
-    const adminLoginView = document.getElementById('admin-login-view');
-    const adminDashboardView = document.getElementById('admin-dashboard-view');
-    const loginForm = document.getElementById('login-form');
-
-    const loginLimiter = new JYSecurity.RateLimiter(5, 30000);
+    // (Elements moved to top)
 
     function checkAdminAuth() {
         const session = JYSecurity.validateSession();
@@ -333,12 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     });
 
-    // CRUD: Inventory
-    const inventoryList = document.getElementById('inventory-list');
-    const adminForm = document.getElementById('admin-form');
-    const adminFormContainer = document.getElementById('admin-form-container');
-    const carImagesInput = document.getElementById('car-images-input');
-    const imagePreviewContainer = document.getElementById('image-preview-container');
+    // (Elements moved to top)
     let tempCarImages = [];
 
     carImagesInput?.addEventListener('change', (e) => {
