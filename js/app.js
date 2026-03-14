@@ -143,11 +143,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = 'car-card';
             card.innerHTML = `
-                <div class="car-image">
-                    <img src="${safeImage}" alt="${safeBrand} ${safeModel}" loading="lazy">
-                    <span class="car-type-badge">${safeType}</span>
+                <div class="car-image-container">
+                    <img src="${safeImage}" alt="${safeBrand} ${safeModel}" class="car-image" loading="lazy">
+                    <span class="car-badge">${safeType}</span>
                 </div>
-                <div class="car-info">
+                <div class="car-content">
                     <div class="car-header">
                         <h3>${safeBrand} ${safeModel}</h3>
                         <span class="car-year">${safeYear}</span>
@@ -196,7 +196,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="car-gallery-small">
                     ${images.map((img, idx) => `
                         <img src="${JYSecurity.resolveImageURL(img)}" class="gallery-thumb ${idx === 0 ? 'active' : ''}" 
-                             onclick="this.parentElement.parentElement.querySelector('.main-modal-img').src=this.src; 
+                             onclick="const mainImg = this.parentElement.parentElement.querySelector('.main-modal-img');
+                                      mainImg.src=this.src; 
+                                      mainImg.dataset.index='${idx}';
                                       this.parentElement.querySelectorAll('.gallery-thumb').forEach(t=>t.classList.remove('active')); 
                                       this.classList.add('active');">
                     `).join('')}
@@ -206,7 +208,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('modal-car-preview').innerHTML = `
             <div class="modal-gallery-container">
-                <img src="${mainImage}" alt="${S(car.brand)}" class="main-modal-img">
+                <div class="main-img-wrapper" onclick="openLightbox(${JSON.stringify(images).replace(/"/g, '&quot;')})">
+                    <img src="${mainImage}" alt="${S(car.brand)}" class="main-modal-img" data-index="0">
+                    <div class="img-overlay"><i class="fas fa-search-plus"></i> Ver Galería</div>
+                </div>
                 ${galleryHTML}
             </div>
             <div class="preview-details">
@@ -229,6 +234,68 @@ document.addEventListener('DOMContentLoaded', () => {
         const price = parseFloat(document.getElementById('res-car-price').value) || 0;
         document.getElementById('res-total-estimated').textContent = `$${(days * price).toFixed(2)}`;
     };
+
+    function openLightbox(images) {
+        if (!images || images.length === 0) return;
+        
+        const lightbox = document.createElement('div');
+        lightbox.className = 'lightbox-overlay';
+        
+        let currentIndex = 0;
+        const resolvedImages = images.map(img => JYSecurity.resolveImageURL(img));
+
+        lightbox.innerHTML = `
+            <div class="lightbox-content">
+                <button class="lightbox-close">&times;</button>
+                <div class="lightbox-main">
+                    <img src="${resolvedImages[currentIndex]}" class="lightbox-img">
+                </div>
+                ${resolvedImages.length > 1 ? `
+                <button class="lightbox-prev">&lsaquo;</button>
+                <button class="lightbox-next">&rsaquo;</button>
+                <div class="lightbox-counter">1 / ${resolvedImages.length}</div>
+                ` : ''}
+            </div>
+        `;
+
+        document.body.appendChild(lightbox);
+        document.body.style.overflow = 'hidden';
+
+        const updateLightbox = (idx) => {
+            currentIndex = (idx + resolvedImages.length) % resolvedImages.length;
+            const img = lightbox.querySelector('.lightbox-img');
+            img.style.opacity = '0';
+            setTimeout(() => {
+                img.src = resolvedImages[currentIndex];
+                img.style.opacity = '1';
+                const counter = lightbox.querySelector('.lightbox-counter');
+                if(counter) counter.textContent = `${currentIndex + 1} / ${resolvedImages.length}`;
+            }, 200);
+        };
+
+        lightbox.querySelector('.lightbox-close').onclick = () => {
+            lightbox.remove();
+            document.body.style.overflow = '';
+        };
+
+        lightbox.querySelector('.lightbox-prev')?.addEventListener('click', () => updateLightbox(currentIndex - 1));
+        lightbox.querySelector('.lightbox-next')?.addEventListener('click', () => updateLightbox(currentIndex + 1));
+        
+        lightbox.onclick = (e) => {
+            if (e.target === lightbox) lightbox.querySelector('.lightbox-close').click();
+        };
+
+        // Keyboard navigation
+        const keyHandler = (e) => {
+            if (e.key === 'ArrowLeft') updateLightbox(currentIndex - 1);
+            if (e.key === 'ArrowRight') updateLightbox(currentIndex + 1);
+            if (e.key === 'Escape') {
+                lightbox.querySelector('.lightbox-close').click();
+                document.removeEventListener('keydown', keyHandler);
+            }
+        };
+        document.addEventListener('keydown', keyHandler);
+    }
 
     document.getElementById('res-days')?.addEventListener('input', updateResTotal);
     document.getElementById('close-modal-btn')?.addEventListener('click', () => resModal.style.display = 'none');
