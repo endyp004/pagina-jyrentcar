@@ -64,11 +64,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const hash = window.location.hash.replace('#', '') || 'home';
         switchView(hash);
     });
-
     // ==== Data Management (API) ====
     let cars = [];
     let reservations = [];
     let users = [];
+    let isLoggedIn = false;
 
     async function fetchCars() {
         try {
@@ -239,7 +239,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const adminLoginView = document.getElementById('admin-login-view');
     const adminDashboardView = document.getElementById('admin-dashboard-view');
     const loginForm = document.getElementById('login-form');
-    let isLoggedIn = false;
 
     const loginLimiter = new JYSecurity.RateLimiter(5, 30000);
 
