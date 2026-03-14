@@ -647,7 +647,7 @@ input::placeholder, textarea::placeholder {
 }
 
 .car-content {
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md); /* Reduced from lg to make photo more prominent */
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -690,15 +690,23 @@ input::placeholder, textarea::placeholder {
     padding-top: var(--spacing-md);
 }
 
-.price-amount {
-    font-size: 1.5rem;
-    font-weight: 800; /* Extra bold */
-    color: #ffffff; /* Explicit white for better visibility */
-    display: block;
+.car-price {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    color: #ffffff;
 }
-.car-price span {
-    font-size: 0.9rem;
-    color: var(--clr-text-secondary);
+
+.price-amount {
+    font-size: 1.7rem; /* Slightly larger */
+    font-weight: 800; /* Extra bold */
+    color: #ffffff; /* Explicitly white */
+    line-height: 1;
+}
+
+.price-unit {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.7); /* Slightly transparent white for unit */
     font-weight: normal;
 }
 
