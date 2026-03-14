@@ -259,11 +259,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loginForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        console.log('Login attempt started...');
         const loginError = document.getElementById('login-error');
         loginError.style.display = 'none'; // Clear previous
 
         const status = loginLimiter.getStatus();
         if (status.locked) {
+            console.warn('Login locked:', status);
             loginError.textContent = `⏳ Demasiados intentos. Espera ${status.remainingSeconds} segundos.`;
             loginError.style.display = 'block';
             return;
@@ -271,6 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const u = document.getElementById('login-username').value.trim();
         const p = document.getElementById('login-password').value;
+        console.log('Username:', u);
 
         if (!u || !p) {
             loginError.textContent = 'Por favor, completa ambos campos.';
@@ -284,8 +287,9 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             submitBtn.disabled = true;
             submitBtn.textContent = '⏱️ Cargando...';
-
+            console.log('Calling JYSecurity.login...');
             const res = await JYSecurity.login(u, p);
+            console.log('Login Result:', res);
             if (res.success) {
                 loginLimiter.reset();
                 isLoggedIn = true;
