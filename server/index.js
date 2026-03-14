@@ -217,10 +217,13 @@ app.post('/api/users', verifyToken, async (req, res) => {
 app.delete('/api/users/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
     try {
-        // Prevent deleting original admin (id=1 usually, but let's check username too)
-        const [user] = await pool.query('SELECT username FROM users WHERE id = ?', [id]);
-        if (user.length > 0 && user[0].username === 'admin') {
-            return res.status(403).json({ error: 'No se puede eliminar el usuario administrador principal.' });
+        // Prevent deleting the LAST Super Admin or Admin to avoid lockout
+        const [admins] = await pool.query('SELECT id FROM users WHERE role IN ("Admin", "Super Admin")');
+        if (admins.length <= 1) {
+            const [targetUser] = await pool.query('SELECT role FROM users WHERE id = ?', [id]);
+            if (targetUser.length > 0 && (targetUser[0].role === 'Admin' || targetUser[0].role === 'Super Admin')) {
+                return res.status(403).json({ error: 'No se puede eliminar el único administrador del sistema.' });
+            }
         }
         await pool.query('DELETE FROM users WHERE id = ?', [id]);
         res.json({ success: true });
