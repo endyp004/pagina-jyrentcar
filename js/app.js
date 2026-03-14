@@ -140,6 +140,31 @@ document.addEventListener('DOMContentLoaded', () => {
             const safeType = S(typeLabels[car.type] || car.type);
             const safeId = S(car.id);
 
+            const card = document.createElement('div');
+            card.className = 'car-card';
+            card.innerHTML = `
+                <div class="car-image">
+                    <img src="${safeImage}" alt="${safeBrand} ${safeModel}" loading="lazy">
+                    <span class="car-type-badge">${safeType}</span>
+                </div>
+                <div class="car-info">
+                    <div class="car-header">
+                        <h3>${safeBrand} ${safeModel}</h3>
+                        <span class="car-year">${safeYear}</span>
+                    </div>
+                    <div class="car-features">
+                        ${featuresHTML}
+                    </div>
+                    <div class="car-footer">
+                        <div class="car-price">
+                            <span class="price-amount">$${safePrice}</span>
+                            <span class="price-unit">/día</span>
+                        </div>
+                        <button class="btn btn-primary btn-reserve-trigger" data-id="${safeId}">Reservar</button>
+                    </div>
+                </div>
+            `;
+
             catalogGrid.appendChild(card);
 
             // Make entire card clickable
