@@ -3,6 +3,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const S = JYSecurity.sanitizeHTML;
     const SURL = JYSecurity.sanitizeURL;
 
+    // ==== Data Management (API State) ====
+    let cars = [];
+    let reservations = [];
+    let users = [];
+    let isLoggedIn = false;
+
     // ==== UI Interaction: Navigation SPA & Mobile Menu ====
     const navLinks = document.querySelectorAll('[data-view]');
     const viewSections = document.querySelectorAll('.view-section');
@@ -64,11 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const hash = window.location.hash.replace('#', '') || 'home';
         switchView(hash);
     });
-    // ==== Data Management (API) ====
-    let cars = [];
-    let reservations = [];
-    let users = [];
-    let isLoggedIn = false;
+    // (Variables moved to top)
 
     async function fetchCars() {
         try {
