@@ -615,10 +615,10 @@ input::placeholder, textarea::placeholder {
 }
 
 .car-image-container {
-    height: 200px;
+    height: 280px; /* Increased to show full vehicle */
     overflow: hidden;
     position: relative;
-    background-color: #000;
+    background-color: var(--clr-bg-surface);
 }
 
 .car-image {

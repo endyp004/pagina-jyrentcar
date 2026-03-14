@@ -168,16 +168,20 @@ document.addEventListener('DOMContentLoaded', () => {
             catalogGrid.appendChild(card);
 
             // Make entire card clickable
+            // Make entire card open Lightbox/Gallery
             card.onclick = (e) => {
                 // If the user didn't click the reserve button specifically
                 if (!e.target.classList.contains('btn-reserve-trigger')) {
-                    openReservationModal(car.id);
+                    openLightbox(car.image);
                 }
             };
         });
 
         document.querySelectorAll('.btn-reserve-trigger').forEach(btn => {
-            btn.onclick = () => openReservationModal(btn.dataset.id);
+            btn.onclick = (e) => {
+                e.stopPropagation(); // Prevent card click
+                openReservationModal(btn.dataset.id);
+            };
         });
     }
 
