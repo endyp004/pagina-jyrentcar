@@ -19,8 +19,8 @@ services:
     build: .
     container_name: jy_rentcar_backend
     restart: always
-    expose:
-      - "3000"
+    ports:
+      - "3000:3000"
     environment:
       DB_HOST: db
       DB_USER: jy_user

@@ -555,26 +555,23 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('price', price);
         formData.append('features', features);
 
-        // Append all selected files
-        if (tempCarImages.length > 0) {
-            tempCarImages.forEach(imgObj => {
+        // Find existing images if editing
+        const carId = document.getElementById('car-id').value;
+        const existingCar = carId ? cars.find(c => c.id === carId) : null;
+        
+        const hasNewFiles = tempCarImages.some(imgObj => imgObj.file !== null);
+
+        if (hasNewFiles) {
+             tempCarImages.forEach(imgObj => {
                 if (imgObj.file) {
                     formData.append('imageFiles', imgObj.file);
                 }
             });
-            
-            // If some are already uploaded (editing), keep them? 
-            // For now, if NEW files are uploaded, they replace all old ones in the backend.
-            // If NO new files are uploaded, we send the existing ones.
-        }
-        
-        // Find existing images if editing and no new files uploaded
-        const carId = document.getElementById('car-id').value;
-        const existingCar = carId ? cars.find(c => c.id === carId) : null;
-        
-        if (tempCarImages.length === 0 && existingCar) {
+        } else if (existingCar) {
+            // No new files, keep all existing ones
             formData.append('image', JSON.stringify(existingCar.image));
-        } else if (tempCarImages.length === 0) {
+        } else {
+            // New car without images, use placeholder
             formData.append('image', JSON.stringify(['images/car-placeholder.png']));
         }
 
